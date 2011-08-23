@@ -55,7 +55,7 @@ public class DBConnector extends JunctionActor {
 		try {
 			if(message.has("service")){
 				String service = message.getString("service");
-				//========================================================//
+				//==========================학사정보인증과정==============================//
 				if(service.equals("certification")){
 					String id = message.getString("id");
 					String pw = message.getString("pw");
@@ -81,9 +81,28 @@ public class DBConnector extends JunctionActor {
 						// 현재는 pidgin을 이용한 디버깅을 목적으로 사용함
 					}
 				}
-				//========================================================//
-				else if(service.equals("circulation")){
-					
+				//================================================================//
+				//==========================도서확인과정==============================//
+				else if(service.equals("checkbook")){
+					String book_id = message.getString("bookid");
+					Statement stmt = con.createStatement();
+					ResultSet rs = stmt.executeQuery("SELECT * FROM books");
+					boolean found = false;
+					String title, author, publisher, borrower;
+					while(rs.next()){
+						if(rs.getString("book_id").equals(book_id)){
+							found = true;
+							title = rs.getString("title");
+							author = rs.getString("author");
+							publisher = rs.getString("publisher");
+							borrower = rs.getString("borrower");
+							
+						}
+					}
+					if(found==true){
+						
+					}
+						
 				}
 			}
 		} catch (JSONException e) {
