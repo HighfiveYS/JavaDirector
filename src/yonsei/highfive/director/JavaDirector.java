@@ -21,6 +21,7 @@ public class JavaDirector extends JunctionActor {
 	 *  Switchboard Setup
 	 */
 	private static final String switchboard = "165.132.214.212";
+//	private static final String switchboard = "boom1492.iptime.org";
 	private static final XMPPSwitchboardConfig config = new XMPPSwitchboardConfig(switchboard);
 	private static final JunctionMaker jxMaker = JunctionMaker.getInstance(config);
 	/**
@@ -47,7 +48,7 @@ public class JavaDirector extends JunctionActor {
 	private static Connection con = makeConnection();
 	
 	public JavaDirector(){
-		super("dbc");
+		super("director");
 	}
 	@Override
 	public void onMessageReceived(MessageHeader header, JSONObject message) {
@@ -87,22 +88,61 @@ public class JavaDirector extends JunctionActor {
 					String book_id = message.getString("bookid");
 					Statement stmt = con.createStatement();
 					ResultSet rs = stmt.executeQuery("SELECT * FROM books");
-					boolean found = false;
-					String title, author, publisher, borrower;
+					String title = null, author = null, publisher = null, borrower = null;
 					while(rs.next()){
 						if(rs.getString("book_id").equals(book_id)){
-							found = true;
 							title = rs.getString("title");
 							author = rs.getString("author");
 							publisher = rs.getString("publisher");
 							borrower = rs.getString("borrower");
-							
 						}
 					}
-					if(found==true){
-						
+					JSONObject ack = new JSONObject();
+					ack.put("service", "checkbook");
+					ack.put("title", title);
+					ack.put("author", author);
+					ack.put("publisher", publisher);
+					if(borrower==null)
+						ack.put("borrower", "null");
+					else
+						ack.put("borrower", borrower);
+					sendMessageToRole("user", ack);
+				}
+				//================================================================//
+				//============================도서대출반납=========================//
+				else if(service.equals("borrowbook")){
+					String user_id = message.getString("userid");
+					String book_id = message.getString("bookid");
+					Statement stmt = con.createStatement();
+					int rs = stmt.executeUpdate("UPDATE books SET borrower = " + user_id + " WHERE book_id = " + book_id);
+					if(rs!=0){
+						JSONObject ack = new JSONObject();
+						ack.put("service", "borrowbook");
+						ack.put("ack", "true");
+						sendMessageToRole("user", ack);
+					} else{
+						JSONObject ack = new JSONObject();
+						ack.put("service", "borrowbook");
+						ack.put("ack", "false");
+						sendMessageToRole("user", ack);
 					}
-						
+				}
+				else if(service.equals("returnbook")){
+					String user_id = message.getString("userid");
+					String book_id = message.getString("bookid");
+					Statement stmt = con.createStatement();
+					int rs = stmt.executeUpdate("UPDATE books SET borrower = NULL WHERE book_id =" + book_id);
+					if(rs!=0){
+						JSONObject ack = new JSONObject();
+						ack.put("service", "returnbook");
+						ack.put("ack", "true");
+						sendMessageToRole("user", ack);
+					} else{
+						JSONObject ack = new JSONObject();
+						ack.put("service", "returnbook");
+						ack.put("ack", "false");
+						sendMessageToRole("user", ack);
+					}
 				}
 			}
 		} catch (JSONException e) {
