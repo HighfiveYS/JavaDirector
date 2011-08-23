@@ -1,4 +1,4 @@
-package yonsei.highfive.dbconnector;
+package yonsei.highfive.director;
 
 import java.net.URI;
 import java.sql.Connection;
@@ -16,7 +16,7 @@ import edu.stanford.junction.api.activity.JunctionActor;
 import edu.stanford.junction.api.messaging.MessageHeader;
 import edu.stanford.junction.provider.xmpp.XMPPSwitchboardConfig;
 
-public class DBConnector extends JunctionActor {
+public class JavaDirector extends JunctionActor {
 	/**
 	 *  Switchboard Setup
 	 */
@@ -46,7 +46,7 @@ public class DBConnector extends JunctionActor {
 	}
 	private static Connection con = makeConnection();
 	
-	public DBConnector(){
+	public JavaDirector(){
 		super("dbc");
 	}
 	@Override
@@ -117,7 +117,7 @@ public class DBConnector extends JunctionActor {
 	
 	public static void main(String[] argv) {
 		
-		DBConnector dbc = new DBConnector();
+		JavaDirector dbc = new JavaDirector();
 		try {
 			jxMaker.newJunction(URI.create("junction://"+switchboard+"/db"), dbc);
 			System.out.println(switchboard + " : Junction Connected");
