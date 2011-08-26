@@ -176,6 +176,28 @@ public class JavaDirector extends JunctionActor {
 					sendMessageToRole("user", ack);
 				}
 				//////////////////////////////////////////////////////////////////////
+				//======================도서검색 목록=====================================//
+				else if(service.equals("searchbook")){
+					String keyword = message.getString("keyword");
+					Statement stmt = con.createStatement();
+					ResultSet rs = stmt.executeQuery("SELECT * FROM books WHERE title LIKE '%" + keyword + "%'");
+					JSONObject ack = new JSONObject();
+					ack.put("service", "searchbook");
+					JSONArray books = new JSONArray();
+					while(rs.next()){
+						String bookid = rs.getString("book_id");
+						String title = rs.getString("title");
+						String author = rs.getString("author");
+						String publisher = rs.getString("publisher");
+						String borrower = rs.getString("borrower");
+						BookSpec bookspec = new BookSpec(bookid, title, author, publisher, borrower);
+						JSONObject book = bookspec.getJSON();
+						books.put(book);
+					}
+					ack.put("book", books);
+					sendMessageToRole("user", ack);
+				////////////////////////////////////////////////////////////////////////
+				}
 			}
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
