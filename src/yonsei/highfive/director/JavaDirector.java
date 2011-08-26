@@ -7,8 +7,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import yonsei.highfive.circulation.BookSpec;
 
 import edu.stanford.junction.JunctionException;
 import edu.stanford.junction.JunctionMaker;
@@ -30,7 +33,7 @@ public class JavaDirector extends JunctionActor {
 	 * boom1492.iptime.org 서버 이용
 	 */
 	public static Connection makeConnection(){
-		String url = "jdbc:mysql://boom1492.iptime.org:3306/librarydb";
+		String url = "jdbc:mysql://165.132.214.212:3306/librarydb";
 		String id = "highfive";
 		String password = "fivehigh";
 		Connection con = null;
@@ -72,6 +75,7 @@ public class JavaDirector extends JunctionActor {
 						JSONObject ack = new JSONObject();
 						ack.put("accept", "true");
 						sendMessageToRole("user", ack);
+						System.out.println(id + "님이 학사 인증되었습니다.");
 						// 후에 sendMessageToRole을 sendMessageToActor로 바꾸어주어야함
 						// 현재는 pidgin을 이용한 디버깅을 목적으로 사용함
 					}else{
@@ -82,7 +86,7 @@ public class JavaDirector extends JunctionActor {
 						// 현재는 pidgin을 이용한 디버깅을 목적으로 사용함
 					}
 				}
-				//================================================================//
+				////////////////////////////////////////////////////////////////////////
 				//==========================도서확인과정==============================//
 				else if(service.equals("checkbook")){
 					String book_id = message.getString("bookid");
@@ -98,28 +102,32 @@ public class JavaDirector extends JunctionActor {
 						}
 					}
 					JSONObject ack = new JSONObject();
+					JSONObject book = new JSONObject();
 					ack.put("service", "checkbook");
-					ack.put("title", title);
-					ack.put("author", author);
-					ack.put("publisher", publisher);
+					book.put("bookid", book_id);
+					book.put("title", title);
+					book.put("author", author);
+					book.put("publisher", publisher);
 					if(borrower==null)
-						ack.put("borrower", "null");
+						book.put("borrower", "null");
 					else
-						ack.put("borrower", borrower);
+						book.put("borrower", borrower);
+					ack.put("book", book);
 					sendMessageToRole("user", ack);
 				}
-				//================================================================//
+				//////////////////////////////////////////////////////////////////////
 				//============================도서대출반납=========================//
 				else if(service.equals("borrowbook")){
 					String user_id = message.getString("userid");
 					String book_id = message.getString("bookid");
 					Statement stmt = con.createStatement();
-					int rs = stmt.executeUpdate("UPDATE books SET borrower = " + user_id + " WHERE book_id = " + book_id);
+					int rs = stmt.executeUpdate("UPDATE books SET borrower = " + user_id + " WHERE book_id = " + book_id + " AND borrower IS NULL");
 					if(rs!=0){
 						JSONObject ack = new JSONObject();
 						ack.put("service", "borrowbook");
 						ack.put("ack", "true");
 						sendMessageToRole("user", ack);
+						System.out.println(user_id + "님이 " + book_id +"를 대여하였습니다.");
 					} else{
 						JSONObject ack = new JSONObject();
 						ack.put("service", "borrowbook");
@@ -131,12 +139,13 @@ public class JavaDirector extends JunctionActor {
 					String user_id = message.getString("userid");
 					String book_id = message.getString("bookid");
 					Statement stmt = con.createStatement();
-					int rs = stmt.executeUpdate("UPDATE books SET borrower = NULL WHERE book_id =" + book_id);
+					int rs = stmt.executeUpdate("UPDATE books SET borrower = NULL WHERE book_id =" + book_id + " AND borrower = " + user_id);
 					if(rs!=0){
 						JSONObject ack = new JSONObject();
 						ack.put("service", "returnbook");
 						ack.put("ack", "true");
 						sendMessageToRole("user", ack);
+						System.out.println(user_id + "님이 " + book_id +"를 반납하였습니다.");
 					} else{
 						JSONObject ack = new JSONObject();
 						ack.put("service", "returnbook");
@@ -144,6 +153,29 @@ public class JavaDirector extends JunctionActor {
 						sendMessageToRole("user", ack);
 					}
 				}
+				///////////////////////////////////////////////////////////////////////
+				//==============대여도서목록===========================================//
+				else if(service.equals("checkborrowed")){
+					String user_id = message.getString("userid");
+					Statement stmt = con.createStatement();
+					ResultSet rs = stmt.executeQuery("SELECT * FROM books WHERE borrower = "+ user_id);
+					JSONObject ack = new JSONObject();
+					ack.put("service", "checkborrowed");
+					JSONArray books = new JSONArray();
+					while(rs.next()){
+						String bookid = rs.getString("book_id");
+						String title = rs.getString("title");
+						String author = rs.getString("author");
+						String publisher = rs.getString("publisher");
+						String borrower = rs.getString("borrower");
+						BookSpec bookspec = new BookSpec(bookid, title, author, publisher, borrower);
+						JSONObject book = bookspec.getJSON();
+						books.put(book);
+					}
+					ack.put("book", books);
+					sendMessageToRole("user", ack);
+				}
+				//////////////////////////////////////////////////////////////////////
 			}
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
