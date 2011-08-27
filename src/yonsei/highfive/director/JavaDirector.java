@@ -24,13 +24,12 @@ public class JavaDirector extends JunctionActor {
 	 *  Switchboard Setup
 	 */
 	private static final String switchboard = "165.132.214.212";
-//	private static final String switchboard = "boom1492.iptime.org";
 	private static final XMPPSwitchboardConfig config = new XMPPSwitchboardConfig(switchboard);
 	private static final JunctionMaker jxMaker = JunctionMaker.getInstance(config);
+
 	/**
-	 * DB 셋업
-	 * 현재 연구실 서버에 3306포트가 막혀있으므로 임시로
-	 * boom1492.iptime.org 서버 이용
+	 * mysql DB server와 연결
+	 * @return 
 	 */
 	public static Connection makeConnection(){
 		String url = "jdbc:mysql://165.132.214.212:3306/librarydb";
@@ -49,7 +48,10 @@ public class JavaDirector extends JunctionActor {
 		return con;
 	}
 	private static Connection con = makeConnection();
-	
+
+	/**
+	 * Role : Director
+	 */
 	public JavaDirector(){
 		super("director");
 	}
