@@ -1,18 +1,22 @@
 package yonsei.highfive.director;
 
+import java.awt.AWTException;
+import java.awt.Robot;
+import java.awt.event.KeyEvent;
 import java.net.URI;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import yonsei.highfive.circulation.BookSpec;
-
 import edu.stanford.junction.JunctionException;
 import edu.stanford.junction.JunctionMaker;
 import edu.stanford.junction.api.activity.JunctionActor;
@@ -198,8 +202,188 @@ public class JavaDirector extends JunctionActor {
 					}
 					ack.put("book", books);
 					sendMessageToRole("user", ack);
-				////////////////////////////////////////////////////////////////////////
 				}
+				////////////////////////////////////////////////////////////////////////
+				//============컨트롤러 디렉터==============================================//
+				else if(service.equals("keypress")){
+					String keypress = message.getString("keypress");
+					try {
+						Robot robot = new Robot();
+						if(keypress.equals("up")){
+							robot.keyPress(KeyEvent.VK_UP);
+						}
+						else if(keypress.equals("down")){
+							robot.keyPress(KeyEvent.VK_DOWN);
+						}
+						else if(keypress.equals("left")){
+							robot.keyPress(KeyEvent.VK_LEFT);
+						}
+						else if(keypress.equals("right")){
+							robot.keyPress(KeyEvent.VK_RIGHT);
+						}
+						else if(keypress.equals("a")){
+							robot.keyPress(KeyEvent.VK_A);
+						}
+						else if(keypress.equals("s")){
+							robot.keyPress(KeyEvent.VK_S);
+						}
+						else if(keypress.equals("d")){
+							robot.keyPress(KeyEvent.VK_D);
+						}
+					} catch (AWTException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					//////////////////////////////////////////////////////////////////////
+					
+				}
+				//==========================좌석확인과정==============================//
+				else if(service.equals("checkseat")){
+					String SeatID = message.getString("SeatID");
+					
+					Statement stmt = con.createStatement();
+					
+					ResultSet rs = stmt.executeQuery("SELECT * FROM seats");
+					
+					String UserID = null, StartTime = null, EndTime = null;
+					
+					while(rs.next()){
+						if(rs.getString("SeatID").equals(SeatID)){
+							UserID = rs.getString("UserID");
+							StartTime = rs.getString("StartTime");
+							EndTime = rs.getString("EndTime");
+						}
+					}
+					JSONObject ack = new JSONObject();
+					JSONObject seat = new JSONObject();
+					ack.put("service", "checkseat");
+					seat.put("SeatID", SeatID);
+					seat.put("UserID", UserID);
+					seat.put("StartTime", StartTime);
+					seat.put("EndTime", EndTime);
+
+					sendMessageToRole("user", ack);
+				}
+				//////////////////////////////////////////////////////////////////////
+				//============================좌석배정반납연장=========================//
+				else if(service.equals("occupyseat")){
+					String SeatID = message.getString("SeatID");
+					String UserID = message.getString("UserID");
+					int Hour = message.getInt("Hour");
+
+					Statement stmt = con.createStatement();
+					
+					int su = stmt.executeUpdate("UPDATE seats SET UserID = " + UserID + " WHERE SeaetID = " + SeatID + " AND UserID IS NULL");
+
+					Date date = new Date();
+					Date datenext = new Date();
+					datenext.setTime(date.getTime()+(long)(1000*60*60*Hour));
+					
+					SimpleDateFormat yearformat = new SimpleDateFormat("yyyy");
+					SimpleDateFormat monthformat = new SimpleDateFormat("MM");
+					SimpleDateFormat dayformat = new SimpleDateFormat("dd");
+					SimpleDateFormat timeformat = new SimpleDateFormat("HH:mm:ss");
+				
+					String startyear = yearformat.format(date);
+					String startmonth = monthformat.format(date);
+					String startday = dayformat.format(date);
+					String starttime = timeformat.format(date); 
+					
+					String endyear = yearformat.format(datenext);
+					String endmonth = monthformat.format(datenext);
+					String endday = dayformat.format(datenext);
+					String endtime = timeformat.format(datenext);
+					
+					String StartTime = startyear + "-" + startmonth + "-" + startday + " " + starttime;
+					String EndTime = endyear + "-" + endmonth + "-" + endday + " " + endtime;
+					
+					int ss = stmt.executeUpdate("UPDATE seats SET StartTime = " + StartTime + " WHERE SeaetID = " + SeatID);
+					int se = stmt.executeUpdate("UPDATE seats SET EndTime = " + EndTime + " WHERE SeaetID = " + SeatID);
+					
+					if(su!=0 && ss!=0 && se!=0){
+						JSONObject ack = new JSONObject();
+						ack.put("service", "occupyseat");
+						ack.put("ack", "true");
+						sendMessageToRole("user", ack);
+						System.out.println(UserID + "님이 " + SeatID +" 좌석을 배정받았습니다.");
+					} else{
+						JSONObject ack = new JSONObject();
+						ack.put("service", "occupyseat");
+						ack.put("ack", "false");
+						sendMessageToRole("user", ack);
+					}					
+					
+				}
+				else if(service.equals("returnseat")){
+					String SeatID = message.getString("SeatID");
+					String UserID = message.getString("UserID");
+					
+					Statement stmt = con.createStatement();
+					
+					int su = stmt.executeUpdate("UPDATE seats SET UserID = " + UserID + " WHERE SeaetID = " + SeatID);
+					int ss = stmt.executeUpdate("UPDATE seats SET StartTime = '0000-00-00 00:00:00' WHERE SeaetID = " + SeatID);
+					int se = stmt.executeUpdate("UPDATE seats SET EndTime = '0000-00-00 00:00:00' WHERE SeaetID = " + SeatID);
+					
+					if(su!=0 && ss!=0 && se!=0){
+						JSONObject ack = new JSONObject();
+						ack.put("service", "returnseat");
+						ack.put("ack", "true");
+						sendMessageToRole("user", ack);
+						System.out.println(UserID+ "님이 " + SeatID +" 좌석을 반납하였습니다.");
+					} else{
+						JSONObject ack = new JSONObject();
+						ack.put("service", "returnseat");
+						ack.put("ack", "false");
+						sendMessageToRole("user", ack);
+					}
+				}
+				else if(service.equals("extentseat")){
+					String SeatID = message.getString("SeatID");
+					String UserID = message.getString("UserID");
+					int Hour = message.getInt("Hour");
+					
+					Statement stmt = con.createStatement();
+					
+					Date date = null;
+					ResultSet rs = stmt.executeQuery("SELECT * FROM seats");
+					while(rs.next()){
+						String number = rs.getString("SeatID");
+						if(number.equals(SeatID)){
+							date = rs.getTime("EndTime");
+							break;
+						}
+					}
+					
+					date.setTime(date.getTime()+(long)(1000*60*60*Hour));
+					
+					SimpleDateFormat yearformat = new SimpleDateFormat("yyyy");
+					SimpleDateFormat monthformat = new SimpleDateFormat("MM");
+					SimpleDateFormat dayformat = new SimpleDateFormat("dd");
+					SimpleDateFormat timeformat = new SimpleDateFormat("HH:mm:ss");
+					
+					String endyear = yearformat.format(date);
+					String endmonth = monthformat.format(date);
+					String endday = dayformat.format(date);
+					String endtime = timeformat.format(date);
+							
+					String EndTime = endyear + "-" + endmonth + "-" + endday + " " + endtime;
+					
+					int se = stmt.executeUpdate("UPDATE seats SET EndTime = " + EndTime + " WHERE SeatID =" + SeatID);
+					
+					if(se!=0){
+						JSONObject ack = new JSONObject();
+						ack.put("service", "extentseat");
+						ack.put("ack", "true");
+						sendMessageToRole("user", ack);
+						System.out.println(UserID + "님이 " + SeatID +" 좌석을 연장하였습니다.");
+					} else{
+						JSONObject ack = new JSONObject();
+						ack.put("service", "extentseat");
+						ack.put("ack", "false");
+						sendMessageToRole("user", ack);
+					}
+				}
+				//////////////////////////////////////////////////////////////////////
 			}
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
