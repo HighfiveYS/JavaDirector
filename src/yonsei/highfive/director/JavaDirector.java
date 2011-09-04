@@ -17,6 +17,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import yonsei.highfive.circulation.BookSpec;
+import yonsei.highfive.circulation.MediaSpec;
+
 import edu.stanford.junction.JunctionException;
 import edu.stanford.junction.JunctionMaker;
 import edu.stanford.junction.api.activity.JunctionActor;
@@ -384,6 +386,117 @@ public class JavaDirector extends JunctionActor {
 					}
 				}
 				//////////////////////////////////////////////////////////////////////
+				//==========================멀티미디어 자료 확인과정==============================//
+				else if(service.equals("checkmedia")){
+					String media_id = message.getString("mediaid");
+					Statement stmt = con.createStatement();
+					ResultSet rs = stmt.executeQuery("SELECT * FROM medias");
+					String title = null, director = null, production = null, borrower = null;
+					while(rs.next()){
+						if(rs.getString("media_id").equals(media_id)){
+							title = rs.getString("title");
+							director = rs.getString("director");
+							production = rs.getString("production");
+							borrower = rs.getString("borrower");
+						}
+					}
+					JSONObject ack = new JSONObject();
+					JSONObject media = new JSONObject();
+					ack.put("service", "checkmedia");
+					media.put("mediaid", media_id);
+					media.put("title", title);
+					media.put("director", director);
+					media.put("production", production);
+					if(borrower==null)
+						media.put("borrower", "null");
+					else
+						media.put("borrower", borrower);
+					ack.put("media", media);
+					sendMessageToRole("user", ack);
+				}
+				//////////////////////////////////////////////////////////////////////
+				//============================멀티미디어 자료 대출반납=========================//
+				else if(service.equals("borrowmedia")){
+					String user_id = message.getString("userid");
+					String media_id = message.getString("mediaid");
+					Statement stmt = con.createStatement();
+					int rs = stmt.executeUpdate("UPDATE medias SET borrower = " + user_id + " WHERE media_id = " + media_id + " AND borrower IS NULL");
+					if(rs!=0){
+						JSONObject ack = new JSONObject();
+						ack.put("service", "borrowmedia");
+						ack.put("ack", "true");
+						sendMessageToRole("user", ack);
+						System.out.println(user_id + "님이 " + media_id +"를 대여하였습니다.");
+					} else{
+						JSONObject ack = new JSONObject();
+						ack.put("service", "borrowmedia");
+						ack.put("ack", "false");
+						sendMessageToRole("user", ack);
+					}
+				}
+				else if(service.equals("returnmedia")){
+					String user_id = message.getString("userid");
+					String media_id = message.getString("mediaid");
+					Statement stmt = con.createStatement();
+					int rs = stmt.executeUpdate("UPDATE medias SET borrower = NULL WHERE media_id =" + media_id + " AND borrower = " + user_id);
+					if(rs!=0){
+						JSONObject ack = new JSONObject();
+						ack.put("service", "returnmedia");
+						ack.put("ack", "true");
+						sendMessageToRole("user", ack);
+						System.out.println(user_id + "님이 " + media_id +"를 반납하였습니다.");
+					} else{
+						JSONObject ack = new JSONObject();
+						ack.put("service", "returnmedia");
+						ack.put("ack", "false");
+						sendMessageToRole("user", ack);
+					}
+				}
+				///////////////////////////////////////////////////////////////////////
+				//==============대여 자료 목록===========================================//
+				else if(service.equals("checkborrowed_media")){
+					String user_id = message.getString("userid");
+					Statement stmt = con.createStatement();
+					ResultSet rs = stmt.executeQuery("SELECT * FROM medias WHERE borrower = "+ user_id);
+					JSONObject ack = new JSONObject();
+					ack.put("service", "checkborrowed_media");
+					JSONArray medias = new JSONArray();
+					while(rs.next()){
+						String mediaid = rs.getString("media_id");
+						String title = rs.getString("title");
+						String director = rs.getString("director");
+						String production = rs.getString("production");
+						String borrower = rs.getString("borrower");
+						MediaSpec mediaspec = new MediaSpec(mediaid, title, director, production, borrower);
+						JSONObject media = mediaspec.getJSON();
+						medias.put(media);
+					}
+					ack.put("media", medias);
+					sendMessageToRole("user", ack);
+				}
+				//////////////////////////////////////////////////////////////////////
+				//======================멀티미디어 자료 목록=====================================//
+				else if(service.equals("searchmedia")){
+					String keyword = message.getString("keyword");
+					Statement stmt = con.createStatement();
+					ResultSet rs = stmt.executeQuery("SELECT * FROM medias WHERE title LIKE '%" + keyword + "%'");
+					JSONObject ack = new JSONObject();
+					ack.put("service", "searchmedia");
+					JSONArray medias = new JSONArray();
+					while(rs.next()){
+						String mediaid = rs.getString("media_id");
+						String title = rs.getString("title");
+						String director = rs.getString("director");
+						String production = rs.getString("production");
+						String borrower = rs.getString("borrower");
+						MediaSpec mediaspec = new MediaSpec(mediaid, title, director, production, borrower);
+						JSONObject media = mediaspec.getJSON();
+						medias.put(media);
+					}
+					ack.put("media", medias);
+					sendMessageToRole("user", ack);
+				}
+				////////////////////////////////////////////////////////////////////////
 			}
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
