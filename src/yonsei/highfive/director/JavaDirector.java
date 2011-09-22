@@ -40,9 +40,9 @@ public class JavaDirector extends JunctionActor {
 	 * @return 
 	 */
 	public static Connection makeConnection(){
-		String url = "jdbc:mysql://165.132.214.212:3306/librarydb";
-		String id = "highfive";
-		String password = "fivehigh";
+		String url = "jdbc:mysql://mobilesw.yonsei.ac.kr:3306/librarydb";
+		String id = "root";
+		String password = "apmsetup";
 		Connection con = null;
 		try{
 			Class.forName("com.mysql.jdbc.Driver");
@@ -103,12 +103,15 @@ public class JavaDirector extends JunctionActor {
 					Statement stmt = con.createStatement();
 					ResultSet rs = stmt.executeQuery("SELECT * FROM books");
 					String title = null, author = null, publisher = null, borrower = null;
+					String StartTime = null, EndTime = null;
 					while(rs.next()){
 						if(rs.getString("book_id").equals(book_id)){
 							title = rs.getString("title");
 							author = rs.getString("author");
 							publisher = rs.getString("publisher");
 							borrower = rs.getString("borrower");
+							StartTime = rs.getString("StartTime");
+							EndTime = rs.getString("EndTime");
 						}
 					}
 					JSONObject ack = new JSONObject();
@@ -118,6 +121,8 @@ public class JavaDirector extends JunctionActor {
 					book.put("title", title);
 					book.put("author", author);
 					book.put("publisher", publisher);
+					book.put("StartTime", StartTime);
+					book.put("EndTime", EndTime);
 					if(borrower==null)
 						book.put("borrower", "null");
 					else
@@ -131,7 +136,32 @@ public class JavaDirector extends JunctionActor {
 					String user_id = message.getString("userid");
 					String book_id = message.getString("bookid");
 					Statement stmt = con.createStatement();
-					int rs = stmt.executeUpdate("UPDATE books SET borrower = " + user_id + " WHERE book_id = " + book_id + " AND borrower IS NULL");
+					
+					//
+					Date date = new Date();
+					Date datenext = new Date();
+					datenext.setTime(date.getTime()+(long)(1000*60*60*24*14));	// 현재시간으로 부터 14일
+					
+					SimpleDateFormat yearformat = new SimpleDateFormat("yyyy");
+					SimpleDateFormat monthformat = new SimpleDateFormat("MM");
+					SimpleDateFormat dayformat = new SimpleDateFormat("dd");
+					SimpleDateFormat timeformat = new SimpleDateFormat("HH:mm:ss");
+				
+					String startyear = yearformat.format(date);
+					String startmonth = monthformat.format(date);
+					String startday = dayformat.format(date);
+					String starttime = timeformat.format(date); 
+					
+					String endyear = yearformat.format(datenext);
+					String endmonth = monthformat.format(datenext);
+					String endday = dayformat.format(datenext);
+					String endtime = timeformat.format(datenext);
+					
+					String StartTime = startyear + "-" + startmonth + "-" + startday + " " + starttime;
+					String EndTime = endyear + "-" + endmonth + "-" + endday + " " + endtime;
+					
+					//
+					int rs = stmt.executeUpdate("UPDATE books SET borrower = " + user_id + ", StartTime = '" + StartTime + "', EndTime = '" + EndTime + "' WHERE book_id = " + book_id + " AND borrower IS NULL");
 					if(rs!=0){
 						JSONObject ack = new JSONObject();
 						ack.put("service", "borrowbook");
@@ -149,7 +179,7 @@ public class JavaDirector extends JunctionActor {
 					String user_id = message.getString("userid");
 					String book_id = message.getString("bookid");
 					Statement stmt = con.createStatement();
-					int rs = stmt.executeUpdate("UPDATE books SET borrower = NULL WHERE book_id =" + book_id + " AND borrower = " + user_id);
+					int rs = stmt.executeUpdate("UPDATE books SET borrower = NULL, StartTime = '1000-01-01 00:00:00', EndTime = '1000-01-01 00:00:00' WHERE book_id =" + book_id + " AND borrower = " + user_id);
 					if(rs!=0){
 						JSONObject ack = new JSONObject();
 						ack.put("service", "returnbook");
@@ -178,7 +208,9 @@ public class JavaDirector extends JunctionActor {
 						String author = rs.getString("author");
 						String publisher = rs.getString("publisher");
 						String borrower = rs.getString("borrower");
-						BookSpec bookspec = new BookSpec(bookid, title, author, publisher, borrower);
+						String StartTime = rs.getString("StartTime");
+						String EndTime = rs.getString("EndTime");
+						BookSpec bookspec = new BookSpec(bookid, title, author, publisher, borrower, StartTime, EndTime);
 						JSONObject book = bookspec.getJSON();
 						books.put(book);
 					}
@@ -200,7 +232,9 @@ public class JavaDirector extends JunctionActor {
 						String author = rs.getString("author");
 						String publisher = rs.getString("publisher");
 						String borrower = rs.getString("borrower");
-						BookSpec bookspec = new BookSpec(bookid, title, author, publisher, borrower);
+						String StartTime = rs.getString("StartTime");
+						String EndTime = rs.getString("EndTime");
+						BookSpec bookspec = new BookSpec(bookid, title, author, publisher, borrower, StartTime, EndTime);
 						JSONObject book = bookspec.getJSON();
 						books.put(book);
 					}
@@ -244,14 +278,29 @@ public class JavaDirector extends JunctionActor {
 				//==========================좌석확인과정==============================//
 				else if(service.equals("checkseat")){
 					String SeatID = message.getString("SeatID");
+					String UserIDE = message.getString("UserID");
 					
 					Statement stmt = con.createStatement();
 					
-					ResultSet rs = stmt.executeQuery("SELECT * FROM seats");
-					
-					String UserID = null, StartTimeS = null, EndTimeS = null;
+				
+					String UserID = null, StartTimeS = null, EndTimeS = null, DoubleSeatS = "No", DoubleCheck = null;
 					Date StartTimeD = null, EndTimeD = null;
 					
+					DoubleCheck = "SELECT SeatID FROM seats WHERE UserID = " + UserIDE;
+					ResultSet re = stmt.executeQuery(DoubleCheck);
+					while(re.next()){
+						String _SeatID = re.getString("SeatID");
+						if(!SeatID.equals(_SeatID))
+							DoubleSeatS = "Yes";
+					}
+					/*
+					re.last();
+					int count = re.getRow();
+					if(count != 0){
+						DoubleSeatS = "Yes";
+					}
+				*/
+					ResultSet rs = stmt.executeQuery("SELECT * FROM seats");
 					while(rs.next()){
 						if(rs.getString("SeatID").equals(SeatID)){
 							UserID = rs.getString("UserID");
@@ -259,7 +308,7 @@ public class JavaDirector extends JunctionActor {
 							EndTimeD = rs.getTime("EndTime");
 						}
 					}
-
+					
 					StartTimeS = StartTimeD.toString();
 					EndTimeS = EndTimeD.toString();
 					
@@ -275,6 +324,7 @@ public class JavaDirector extends JunctionActor {
 					}
 					seat.put("StartTime", StartTimeS);
 					seat.put("EndTime", EndTimeS);
+					seat.put("DoubleSeat", DoubleSeatS);
 					ack.put("seat", seat);
 					sendMessageToRole("user", ack);
 				}
@@ -287,35 +337,33 @@ public class JavaDirector extends JunctionActor {
 
 					Statement stmt = con.createStatement();
 					
-					int su = stmt.executeUpdate("UPDATE seats SET UserID = " + UserID + " WHERE SeatID = " + "'" + SeatID + "'" + " AND UserID IS NULL");
+					int	su = stmt.executeUpdate("UPDATE seats SET UserID = " + UserID + " WHERE SeatID = " + "'" + SeatID + "'" + " AND UserID IS NULL");
 
 					Date date = new Date();
 					Date datenext = new Date();
 					datenext.setTime(date.getTime()+(long)(1000*60*60*Hour));
-					
+
 					SimpleDateFormat yearformat = new SimpleDateFormat("yyyy");
 					SimpleDateFormat monthformat = new SimpleDateFormat("MM");
 					SimpleDateFormat dayformat = new SimpleDateFormat("dd");
 					SimpleDateFormat timeformat = new SimpleDateFormat("HH:mm:ss");
-				
+
 					String startyear = yearformat.format(date);
 					String startmonth = monthformat.format(date);
 					String startday = dayformat.format(date);
 					String starttime = timeformat.format(date); 
-					
+
 					String endyear = yearformat.format(datenext);
 					String endmonth = monthformat.format(datenext);
 					String endday = dayformat.format(datenext);
 					String endtime = timeformat.format(datenext);
-					
+
 					String StartTime = startyear + "-" + startmonth + "-" + startday + " " + starttime;
 					String EndTime = endyear + "-" + endmonth + "-" + endday + " " + endtime;
-					
-					int ss = stmt.executeUpdate("UPDATE seats SET StartTime = " + "'" + StartTime + "'" + " WHERE SeatID = " + "'" + SeatID + "'");
-					int se = stmt.executeUpdate("UPDATE seats SET EndTime = " + "'" + EndTime + "'" + " WHERE SeatID = " + "'" + SeatID + "'");
-					
-			
-					
+
+					int	ss = stmt.executeUpdate("UPDATE seats SET StartTime = " + "'" + StartTime + "'" + " WHERE SeatID = " + "'" + SeatID + "'");
+					int	se = stmt.executeUpdate("UPDATE seats SET EndTime = " + "'" + EndTime + "'" + " WHERE SeatID = " + "'" + SeatID + "'");
+
 					if(su!=0 && ss!=0 && se!=0){
 						JSONObject ack = new JSONObject();
 						JSONObject seat = new JSONObject();
@@ -323,19 +371,21 @@ public class JavaDirector extends JunctionActor {
 						seat.put("UserID", UserID);
 						seat.put("StartTime", StartTime);
 						seat.put("EndTime", EndTime);
-						
+						seat.put("DoubleSeat", "No");
+
 						ack.put("service", "occupyseat");
 						ack.put("ack", "true");
 						ack.put("seat", seat);
 						sendMessageToRole("user", ack);
 						System.out.println(UserID + "님이 " + SeatID +" 좌석을 배정받았습니다.");
-					} else{
+					} 
+					else{
 						JSONObject ack = new JSONObject();
 						ack.put("service", "occupyseat");
 						ack.put("ack", "false");
 						sendMessageToRole("user", ack);
 					}					
-					
+
 				}
 				else if(service.equals("returnseat")){
 					String SeatID = message.getString("SeatID");
@@ -358,6 +408,7 @@ public class JavaDirector extends JunctionActor {
 						seat.put("UserID", UserID);
 						seat.put("StartTime", StartTime);
 						seat.put("EndTime", EndTime);
+						seat.put("DoubleSeat", "No");
 						
 						ack.put("service", "returnseat");
 						ack.put("ack", "true");
@@ -425,6 +476,7 @@ public class JavaDirector extends JunctionActor {
 						seat.put("UserID", UserID);
 						seat.put("StartTime", StartTime.toString());
 						seat.put("EndTime", EndTime.toString());
+						seat.put("DoubleSeat", "No");
 						ack.put("service", "extentseat");
 						ack.put("ack", "true");
 						ack.put("seat", seat);
@@ -447,54 +499,35 @@ public class JavaDirector extends JunctionActor {
 					
 					boolean exist = false;
 					boolean isinner = false;
-					int notify = 0;
 
 					
 					while(rs.next()){
 						if(rs.getString("user_id").equals(UserID)){
 							exist = true;
 							isinner = rs.getBoolean("isinner");
-							notify = 1;
 							break;
 						}
 					}
-
-					if(notify == 1){
-						JSONObject ack = new JSONObject();
-						ack.put("ack", "true");
-						if(exist == false){
-							ack.put("service", "errorgate");
-							sendMessageToRole("user", ack);
+					
+					if(isinner)
+						stmt.executeUpdate("UPDATE users SET isinner = 0 WHERE user_id = " + UserID);
+					else
+						stmt.executeUpdate("UPDATE users SET isinner = 1 WHERE user_id = " + UserID);
+					
+					JSONObject ack = new JSONObject();
+					ack.put("ack", "true");
+					if(exist == false){
+						ack.put("service", "errorgate");
+					}
+					else if(exist == true){
+						if(!isinner){
+							ack.put("service","ingate");
 						}
-						else if(exist == true){
-							if(isinner == true){
-								ack.put("service","ingate");
-								sendMessageToRole("user", ack);
-							}
-							else if(isinner == false){
-								ack.put("service", "outgate");
-								sendMessageToRole("user", ack);
-							}
+						else{
+							ack.put("service", "outgate");
 						}
 					}
-					else{
-						JSONObject ack = new JSONObject();
-						ack.put("ack", "false");
-						if(exist == false){
-							ack.put("service", "errorgate");
-							sendMessageToRole("user", ack);
-						}
-						else if(exist == true){
-							if(isinner == true){
-								ack.put("service","ingate");
-								sendMessageToRole("user", ack);
-							}
-							else if(isinner == false){
-								ack.put("service", "outgate");
-								sendMessageToRole("user", ack);
-							}
-						}
-					}
+					sendMessageToRole("user", ack);
 				}
 				//==========================멀티미디어 자료 확인과정==============================//
 				else if(service.equals("checkmedia")){
