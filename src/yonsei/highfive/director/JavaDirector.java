@@ -40,13 +40,17 @@ public class JavaDirector extends JunctionActor {
 	 * @return 
 	 */
 	public static Connection makeConnection(){
-		String url = "jdbc:mysql://mobilesw.yonsei.ac.kr:3306/librarydb";
+		// 일정시간 DB 사용이 없을 경우 연결이 끊어지는 것을 방지하기 위해 autoreconnect 값을 true 로 설정
+		// 추천되는 방법이 아니므로 다른 대안을 찾아봐야한다. validationquery = "select 1" ??????
+		String url = "jdbc:mysql://mobilesw.yonsei.ac.kr:3306/librarydb?autoReconnect=true";
+
 		String id = "root";
 		String password = "apmsetup";
 		Connection con = null;
 		try{
 			Class.forName("com.mysql.jdbc.Driver");
 			con = DriverManager.getConnection(url, id, password);
+
 		}catch(ClassNotFoundException e){
 			System.out.println("드라이버를 찾을 수 없습니다.");
 		}catch(SQLException e){
@@ -490,6 +494,19 @@ public class JavaDirector extends JunctionActor {
 					}
 				}
 				//////////////////////////////////////////////////////////////////////
+				else if(service.equals("checkseatlist")){
+					Statement stmt = con.createStatement();
+					ResultSet rs = stmt.executeQuery("SELECT * FROM `seats` WHERE `UserID` IS NOT NULL");
+					JSONArray seatlist = new JSONArray();
+					JSONObject ack = new JSONObject();
+					while(rs.next()){
+						seatlist.put(rs.getInt("ind"));
+					}
+					ack.put("list", seatlist);
+					ack.put("service", "ackcheckseatlist");
+					sendMessageToRole("user", ack);
+				}
+				
 				//==========================게이트웨이======================================//
 				else if(service.equals("managegate")){
 					String UserID = message.getString("UserID");
