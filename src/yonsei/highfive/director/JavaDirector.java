@@ -78,16 +78,19 @@ public class JavaDirector extends JunctionActor {
 					String id = message.getString("id");
 					String pw = message.getString("pw");
 					boolean cert = false;
+					boolean inlibrary = false;
 					Statement stmt = con.createStatement();
 					ResultSet rs = stmt.executeQuery("SELECT * FROM users");
 					while(rs.next()){
 						if(rs.getString("user_id").equals(id) && rs.getString("user_pw").equals(pw)){
 							cert = true;
+							inlibrary = rs.getBoolean("isinner");
 						}
 					}
 					if(cert==true){
 						JSONObject ack = new JSONObject();
 						ack.put("accept", "true");
+						ack.put("inlibrary", inlibrary);
 						sendMessageToRole("user", ack);
 						System.out.println(id + "님이 학사 인증되었습니다.");
 						// 후에 sendMessageToRole을 sendMessageToActor로 바꾸어주어야함
@@ -95,6 +98,7 @@ public class JavaDirector extends JunctionActor {
 					}else{
 						JSONObject ack = new JSONObject();
 						ack.put("accept", "false");
+						ack.put("inlibrary", inlibrary);
 						sendMessageToRole("user", ack);
 						// 후에 sendMessageToRole을 sendMessageToActor로 바꾸어주어야함
 						// 현재는 pidgin을 이용한 디버깅을 목적으로 사용함
@@ -183,7 +187,7 @@ public class JavaDirector extends JunctionActor {
 					String user_id = message.getString("userid");
 					String book_id = message.getString("bookid");
 					Statement stmt = con.createStatement();
-					int rs = stmt.executeUpdate("UPDATE books SET borrower = NULL, StartTime = '1000-01-01 00:00:00', EndTime = '1000-01-01 00:00:00' WHERE book_id =" + book_id + " AND borrower = " + user_id);
+					int rs = stmt.executeUpdate("UPDATE books SET borrower = NULL, StartTime = '1000-01-01 00:00:00', EndTime = '1000-01-01 00:00:00' WHERE book_id =" + book_id + " AND borrower = '" + user_id +"'");
 					if(rs!=0){
 						JSONObject ack = new JSONObject();
 						ack.put("service", "returnbook");
@@ -202,7 +206,7 @@ public class JavaDirector extends JunctionActor {
 				else if(service.equals("checkborrowed")){
 					String user_id = message.getString("userid");
 					Statement stmt = con.createStatement();
-					ResultSet rs = stmt.executeQuery("SELECT * FROM books WHERE borrower = "+ user_id);
+					ResultSet rs = stmt.executeQuery("SELECT * FROM books WHERE borrower = '"+ user_id +"'");
 					JSONObject ack = new JSONObject();
 					ack.put("service", "checkborrowed");
 					JSONArray books = new JSONArray();
@@ -290,7 +294,7 @@ public class JavaDirector extends JunctionActor {
 					String UserID = null, StartTimeS = null, EndTimeS = null, DoubleSeatS = "No", DoubleCheck = null;
 					Date StartTimeD = null, EndTimeD = null;
 					
-					DoubleCheck = "SELECT SeatID FROM seats WHERE UserID = " + UserIDE;
+					DoubleCheck = "SELECT SeatID FROM seats WHERE UserID = '" + UserIDE + "'";
 					ResultSet re = stmt.executeQuery(DoubleCheck);
 					while(re.next()){
 						String _SeatID = re.getString("SeatID");
@@ -341,7 +345,7 @@ public class JavaDirector extends JunctionActor {
 
 					Statement stmt = con.createStatement();
 					
-					int	su = stmt.executeUpdate("UPDATE seats SET UserID = " + UserID + " WHERE SeatID = " + "'" + SeatID + "'" + " AND UserID IS NULL");
+					int	su = stmt.executeUpdate("UPDATE seats SET UserID = '" + UserID + "' WHERE SeatID = " + "'" + SeatID + "'" + " AND UserID IS NULL");
 
 					Date date = new Date();
 					Date datenext = new Date();
@@ -354,7 +358,7 @@ public class JavaDirector extends JunctionActor {
 
 					String startyear = yearformat.format(date);
 					String startmonth = monthformat.format(date);
-					String startday = dayformat.format(date);
+					String startday = dayformat.format(date);	
 					String starttime = timeformat.format(date); 
 
 					String endyear = yearformat.format(datenext);
@@ -527,9 +531,9 @@ public class JavaDirector extends JunctionActor {
 					}
 					
 					if(isinner)
-						stmt.executeUpdate("UPDATE users SET isinner = 0 WHERE user_id = " + UserID);
+						stmt.executeUpdate("UPDATE users SET isinner = 0 WHERE user_id = '" + UserID + "'");
 					else
-						stmt.executeUpdate("UPDATE users SET isinner = 1 WHERE user_id = " + UserID);
+						stmt.executeUpdate("UPDATE users SET isinner = 1 WHERE user_id = '" + UserID + "'");
 					
 					JSONObject ack = new JSONObject();
 					ack.put("ack", "true");
@@ -582,7 +586,7 @@ public class JavaDirector extends JunctionActor {
 					String user_id = message.getString("userid");
 					String media_id = message.getString("mediaid");
 					Statement stmt = con.createStatement();
-					int rs = stmt.executeUpdate("UPDATE medias SET borrower = " + user_id + " WHERE media_id = " + media_id + " AND borrower IS NULL");
+					int rs = stmt.executeUpdate("UPDATE medias SET borrower = '" + user_id + "' WHERE media_id = " + media_id + " AND borrower IS NULL");
 					if(rs!=0){
 						JSONObject ack = new JSONObject();
 						ack.put("service", "borrowmedia");
@@ -600,7 +604,7 @@ public class JavaDirector extends JunctionActor {
 					String user_id = message.getString("userid");
 					String media_id = message.getString("mediaid");
 					Statement stmt = con.createStatement();
-					int rs = stmt.executeUpdate("UPDATE medias SET borrower = NULL WHERE media_id =" + media_id + " AND borrower = " + user_id);
+					int rs = stmt.executeUpdate("UPDATE medias SET borrower = NULL WHERE media_id =" + media_id + " AND borrower = '" + user_id+"'");
 					if(rs!=0){
 						JSONObject ack = new JSONObject();
 						ack.put("service", "returnmedia");
@@ -619,7 +623,7 @@ public class JavaDirector extends JunctionActor {
 				else if(service.equals("checkborrowed_media")){
 					String user_id = message.getString("userid");
 					Statement stmt = con.createStatement();
-					ResultSet rs = stmt.executeQuery("SELECT * FROM medias WHERE borrower = "+ user_id);
+					ResultSet rs = stmt.executeQuery("SELECT * FROM medias WHERE borrower = '"+ user_id + "'");
 					JSONObject ack = new JSONObject();
 					ack.put("service", "checkborrowed_media");
 					JSONArray medias = new JSONArray();
