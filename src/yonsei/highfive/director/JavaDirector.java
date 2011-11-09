@@ -77,9 +77,11 @@ public class JavaDirector extends JunctionActor {
 				if(service.equals("certification")){
 					String id = message.getString("id");
 					String pw = message.getString("pw");
+					String IMEI = message.getString("IMEI");
 					boolean cert = false;
 					boolean inlibrary = false;
 					Statement stmt = con.createStatement();
+					int uprs = stmt.executeUpdate("UPDATE users SET IMEI = '" + IMEI + "' WHERE user_id = '" + id + "'");
 					ResultSet rs = stmt.executeQuery("SELECT * FROM users");
 					while(rs.next()){
 						if(rs.getString("user_id").equals(id) && rs.getString("user_pw").equals(pw)){
@@ -169,7 +171,7 @@ public class JavaDirector extends JunctionActor {
 					String EndTime = endyear + "-" + endmonth + "-" + endday + " " + endtime;
 					
 					//
-					int rs = stmt.executeUpdate("UPDATE books SET borrower = " + user_id + ", StartTime = '" + StartTime + "', EndTime = '" + EndTime + "' WHERE book_id = " + book_id + " AND borrower IS NULL");
+					int rs = stmt.executeUpdate("UPDATE books SET borrower = '" + user_id + "', StartTime = '" + StartTime + "', EndTime = '" + EndTime + "' WHERE book_id = " + book_id + " AND borrower IS NULL");
 					if(rs!=0){
 						JSONObject ack = new JSONObject();
 						ack.put("service", "borrowbook");
